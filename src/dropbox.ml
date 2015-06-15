@@ -443,10 +443,9 @@ module Make(Client: Cohttp_lwt.Client) = struct
 
   let info_uri = Uri.of_string "https://api.dropbox.com/1/account/info"
 
-  let info ?locale t =
-    let u = match locale with
-      | None -> info_uri
-      | Some l -> Uri.with_query info_uri ["locale", [l]] in
+  let info ?(locale="") t =
+    let u = if locale <> "" then Uri.with_query info_uri ["locale", [locale]]
+            else info_uri in
     Client.get ~headers:(headers t) u >>= check_errors >>= fun (_, body) ->
     Cohttp_lwt_body.to_string body >>= fun body ->
     return(Json.info_of_string body)
@@ -474,7 +473,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
                   Cohttp_lwt_body.drain_body body >>= fun () ->
                   return(Some(metadata, Lwt_stream.of_list [])))
 
-  let get_file t ?rev ?start ?len fn =
+  let get_file t ?(rev="") ?start ?len fn =
     let headers = headers t in
     let headers, must_download = match start, len with
       | Some s, Some l ->
@@ -496,8 +495,7 @@ module Make(Client: Cohttp_lwt.Client) = struct
       | None, None -> headers, true in
     let u =
       Uri.of_string("https://api-content.dropbox.com/1/files/auto/" ^ fn) in
-    let u = match rev with None -> u
-                         | Some r -> Uri.with_query u ["rev", [r]] in
+    let u = if rev <> "" then Uri.with_query u ["rev", [rev]] else u in
     Client.get ~headers u
     >>= check_errors_404 (if must_download then stream_of_file
                           else empty_stream)
@@ -858,10 +856,10 @@ module Make(Client: Cohttp_lwt.Client) = struct
   let create_folder t ?(locale="") ?(root=`Auto) path =
     let q = [("path",[path])] in
     let q = if locale <> "" then ("locale",[locale]) :: q else q in
-    let q = match root with
-      | `Auto -> ("root",["auto"]) :: q
-      | `Dropbox -> ("root",["dropbox"]) :: q
-      | `Sandbox -> ("root",["sandbox"]) :: q in
+    let q = ("root", [match root with
+                      | `Auto -> "auto"
+                      | `Dropbox -> "dropbox"
+                      | `Sandbox -> "sandbox"]) :: q in
     let u = Uri.with_query create_folder_uri q in
     Client.post ~headers:(headers t) u
     >>= create_folder_response
@@ -878,10 +876,10 @@ module Make(Client: Cohttp_lwt.Client) = struct
   let delete t ?(locale="") ?(root=`Auto) path =
     let q = [("path",[path])] in
     let q = if locale <> "" then ("locale",[locale]) :: q else q in
-    let q = match root with
-      | `Auto -> ("root",["auto"]) :: q
-      | `Dropbox -> ("root",["dropbox"]) :: q
-      | `Sandbox -> ("root",["sandbox"]) :: q in
+    let q = ("root", [match root with
+                      | `Auto -> "auto"
+                      | `Dropbox -> "dropbox"
+                      | `Sandbox -> "sandbox"]) :: q in
     let u = Uri.with_query delete_uri q in
     Client.post ~headers:(headers t) u
     >>= delete_response
@@ -898,10 +896,10 @@ module Make(Client: Cohttp_lwt.Client) = struct
   let move t ?(locale="") ?(root=`Auto) from_path to_path =
     let q = [("from_path",[from_path]);("to_path",[to_path])] in
     let q = if locale <> "" then ("locale",[locale]) :: q else q in
-    let q = match root with
-      | `Auto -> ("root",["auto"]) :: q
-      | `Dropbox -> ("root",["dropbox"]) :: q
-      | `Sandbox -> ("root",["sandbox"]) :: q in
+    let q = ("root", [match root with
+                      | `Auto -> "auto"
+                      | `Dropbox -> "dropbox"
+                      | `Sandbox -> "sandbox"]) :: q in
     let u = Uri.with_query move_uri q in
     Client.post ~headers:(headers t) u
     >>= move_response
